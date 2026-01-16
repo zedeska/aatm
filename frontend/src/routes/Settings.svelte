@@ -37,6 +37,35 @@
             />
         </div>
 
+        <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+                <label for="lacale-email" class="block text-sm font-medium text-gray-300">
+                    La-Cale Email
+                </label>
+                <input
+                    type="email"
+                    id="lacale-email"
+                    bind:value={appState.laCaleEmail}
+                    onchange={() => appState.save()}
+                    class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-gray-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors placeholder-zinc-600"
+                    placeholder="email@example.com"
+                />
+            </div>
+            <div class="space-y-2">
+                <label for="lacale-password" class="block text-sm font-medium text-gray-300">
+                    La-Cale Password
+                </label>
+                <input
+                    type="password"
+                    id="lacale-password"
+                    bind:value={appState.laCalePassword}
+                    onchange={() => appState.save()}
+                    class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-gray-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors placeholder-zinc-600"
+                    placeholder="••••••••"
+                />
+            </div>
+        </div>
+
         <div class="space-y-2">
             <label for="trackers" class="block text-sm font-medium text-gray-300">
                 Torrent Trackers (one per line)
@@ -63,6 +92,21 @@
             <label for="private-torrent" class="flex flex-col cursor-pointer select-none">
                 <span class="text-gray-200 font-medium">Private Torrent</span>
                 <span class="text-xs text-zinc-500">Enable this flag if you are using a private tracker</span>
+            </label>
+        </div>
+
+        <!-- Full Automatic Section -->
+        <div class="flex items-center space-x-3 p-4 bg-zinc-900 border border-zinc-700 rounded-lg">
+            <input
+                type="checkbox"
+                id="full-auto"
+                bind:checked={appState.isFullAuto}
+                onchange={() => appState.save()}
+                class="w-5 h-5 text-purple-600 bg-zinc-800 border-zinc-600 rounded focus:ring-purple-500 focus:ring-offset-zinc-900"
+            />
+            <label for="full-auto" class="flex flex-col cursor-pointer select-none">
+                <span class="text-gray-200 font-medium">Full Automatic Mode</span>
+                <span class="text-xs text-zinc-500">Automatically select best match, generate files, and upload after type selection.</span>
             </label>
         </div>
 

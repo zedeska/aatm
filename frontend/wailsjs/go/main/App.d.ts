@@ -22,6 +22,6 @@ export function SaveSettings(arg1:main.AppSettings):Promise<void>;
 
 export function SelectDirectory():Promise<string>;
 
-export function UploadToLaCale(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:main.ReleaseInfo,arg7:string):Promise<void>;
+export function UploadToLaCale(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:main.ReleaseInfo,arg8:string):Promise<void>;
 
 export function UploadToQBittorrent(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;

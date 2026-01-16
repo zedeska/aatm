@@ -11,22 +11,26 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/anacrolix/torrent/metainfo"
 )
 
 // ReleaseInfo matches the typescript interface
 type ReleaseInfo struct {
-	Title         string   `json:"title"`
-	Year          string   `json:"year"`
-	Season        string   `json:"season"`
-	Episode       string   `json:"episode"`
-	Resolution    string   `json:"resolution"`
-	Source        string   `json:"source"`
-	Codec         string   `json:"codec"`
-	Audio         string   `json:"audio"`
-	AudioChannels string   `json:"audioChannels"`
-	Language      string   `json:"language"`
-	Hdr           []string `json:"hdr"`
-	ReleaseGroup  string   `json:"releaseGroup"`
+	Title             string   `json:"title"`
+	Year              string   `json:"year"`
+	Season            string   `json:"season"`
+	Episode           string   `json:"episode"`
+	Resolution        string   `json:"resolution"`
+	Source            string   `json:"source"`
+	Codec             string   `json:"codec"`
+	Audio             string   `json:"audio"`
+	AudioChannels     string   `json:"audioChannels"`
+	Language          string   `json:"language"`
+	AudioLanguages    []string `json:"audioLanguages"`
+	SubtitleLanguages []string `json:"subtitleLanguages"`
+	Hdr               []string `json:"hdr"`
+	ReleaseGroup      string   `json:"releaseGroup"`
 }
 
 // Meta structures for La Cale API
@@ -51,6 +55,63 @@ type MetaResponse struct {
 	Categories    []Category `json:"categories"`
 	TagGroups     []TagGroup `json:"tagGroups"`
 	UngroupedTags []Tag      `json:"ungroupedTags"`
+}
+
+// RemoveFromQBittorrent removes the torrent from qBittorrent without deleting files
+func (a *App) RemoveFromQBittorrent(torrentPath string, qbitUrl string, username string, password string) error {
+	if qbitUrl == "" {
+		return nil
+	}
+
+	// 1. Get InfoHash from file
+	mi, err := metainfo.LoadFromFile(torrentPath)
+	if err != nil {
+		return fmt.Errorf("failed to load torrent file: %w", err)
+	}
+	infoHash := mi.HashInfoBytes().HexString()
+
+	// 2. Login
+	qbitUrl = strings.TrimSuffix(qbitUrl, "/")
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Jar: jar}
+
+	if username != "" || password != "" {
+		vals := url.Values{}
+		vals.Set("username", username)
+		vals.Set("password", password)
+		resp, err := client.PostForm(qbitUrl+"/api/v2/auth/login", vals)
+		if err != nil {
+			return fmt.Errorf("failed to login to qBittorrent: %w", err)
+		}
+		defer resp.Body.Close()
+		// Some versions ensure cookie is set
+	}
+
+	// 3. Delete
+	vals := url.Values{}
+	vals.Set("hashes", infoHash)
+	vals.Set("deleteFiles", "false")
+
+	req, err := http.NewRequest("POST", qbitUrl+"/api/v2/torrents/delete", strings.NewReader(vals.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to delete torrent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("failed to delete torrent, status: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 // UploadToQBittorrent uploads the .torrent file to the configured qBittorrent instance
@@ -132,14 +193,16 @@ func (a *App) UploadToQBittorrent(torrentPath string, qbitUrl string, username s
 }
 
 // UploadToLaCale uploads the release metadata and files to la-cale.space
-func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, tmdbId string, mediaType string, releaseInfo ReleaseInfo, passkey string) error {
+func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, description string, tmdbId string, mediaType string, releaseInfo ReleaseInfo, passkey string, email string, password string) error {
 	if passkey == "" {
-		return fmt.Errorf("passkey is missing in settings")
+		return fmt.Errorf("passkey is missing in settings (required for metadata)")
+	}
+	if email == "" || password == "" {
+		return fmt.Errorf("email and password are required for upload authentication")
 	}
 
+	// 1. Fetch Metadata (Categories & Tags) - Uses External API (Passkey)
 	baseURL := "https://la-cale.space/api/external"
-
-	// 1. Fetch Metadata (Categories & Tags)
 	metaResp, err := http.Get(fmt.Sprintf("%s/meta?passkey=%s", baseURL, passkey))
 	if err != nil {
 		return fmt.Errorf("failed to fetch metadata: %w", err)
@@ -164,22 +227,30 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, t
 	// 3. Identify Tags
 	matchedTags := findMatchingTags(meta, releaseInfo)
 
-	// 4. Upload
+	// 4. Authenticate (Get Session)
+	client, err := a.LaCaleLogin(email, password)
+	if err != nil {
+		return fmt.Errorf("La Cale Login failed: %w", err)
+	}
+
+	// 5. Upload (Internal API)
+	internalURL := "https://la-cale.space/api/internal"
+	
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
 	// Fields
-	writer.WriteField("passkey", passkey)
+	// writer.WriteField("passkey", passkey) // Removed as we use session
 	writer.WriteField("title", title)
+	writer.WriteField("description", description)
 	writer.WriteField("categoryId", categoryId)
+	writer.WriteField("isAnonymous", "false")
 	if tmdbId != "" {
 		writer.WriteField("tmdbId", tmdbId)
 		// Map simple mediaType to likely tmdb type
-		tmdbType := "movie"
+		tmdbType := "MOVIE"
 		if mediaType == "episode" || mediaType == "season" {
-			tmdbType = "tv" // or 'show'? OpenAPI says "movie, show, anime etc". Usually 'tv' or 'show'. Let's guess 'tv' or check docs. Docs say "movie, show, anime".
-			// Let's assume 'tv' is safer or check if valid
-			tmdbType = "show"
+			tmdbType = "TV" 
 		}
 		writer.WriteField("tmdbType", tmdbType)
 	}
@@ -188,14 +259,17 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, t
 		writer.WriteField("tags", tag)
 	}
 
-	// Files
-	// Torrent
 	tFile, err := os.Open(torrentPath)
 	if err != nil {
 		return err
 	}
 	defer tFile.Close()
-	tPart, err := writer.CreateFormFile("file", "release.torrent")
+	
+    // Create Torrent Part custom
+    h := make(map[string][]string)
+    h["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="file"; filename="%s.torrent"`, title)}
+    h["Content-Type"] = []string{"application/x-bittorrent"}
+	tPart, err := writer.CreatePart(h)
 	if err != nil {
 		return err
 	}
@@ -207,21 +281,29 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, t
 		return err
 	}
 	defer nFile.Close()
-	nPart, err := writer.CreateFormFile("nfoFile", "release.nfo")
+	
+    // Create NFO Part custom
+    hNfo := make(map[string][]string)
+    hNfo["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="nfoFile"; filename="%s.nfo"`, title)}
+    hNfo["Content-Type"] = []string{"text/x-nfo"}
+	nPart, err := writer.CreatePart(hNfo)
 	if err != nil {
 		return err
 	}
 	io.Copy(nPart, nFile)
 
 	writer.Close()
+    
+    // Debug Print (Truncated for sanity, but enough to see structure)
+    fmt.Printf("--- Payload Preview (First 2000 chars) ---\n%s\n--- End Preview ---\n", string(body.Bytes()[:min(2000, body.Len())]))
 
-	req, err := http.NewRequest("POST", baseURL+"/upload", body)
+	req, err := http.NewRequest("POST", internalURL+"/torrents/upload", body)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	uploadResp, err := http.DefaultClient.Do(req)
+	uploadResp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("upload request failed: %w", err)
 	}
@@ -238,7 +320,54 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, t
 	return nil
 }
 
+type LoginResponse struct {
+	Success bool `json:"success"`
+}
+
+func (a *App) LaCaleLogin(email, password string) (*http.Client, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{Jar: jar}
+
+	// 1. Auth Login
+	authBody, _ := json.Marshal(map[string]string{
+		"email":    email,
+		"password": password,
+	})
+
+	resp, err := client.Post("https://la-cale.space/api/internal/auth/login", "application/json", bytes.NewBuffer(authBody))
+	if err != nil {
+		return nil, fmt.Errorf("login request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("login failed with status %d: %s", resp.StatusCode, string(b))
+	}
+
+	var res LoginResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode login response: %w", err)
+	}
+
+	if !res.Success {
+		return nil, fmt.Errorf("login was unsuccessful (success: false)")
+	}
+
+	return client, nil
+}
+
 // Helpers
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
 
 func findCategoryId(categories []Category, mediaType string) string {
 	// Recursive search for keywords
@@ -271,11 +400,11 @@ func findCategoryId(categories []Category, mediaType string) string {
 
 func findMatchingTags(meta MetaResponse, info ReleaseInfo) []string {
 	// Gather all available tags into a map for easy lookup by slug
-	availableTags := make(map[string]string) // lowercase slug -> actual slug
+	availableTags := make(map[string]string) // lowercase slug -> ID
 
 	collectTags := func(tags []Tag) {
 		for _, t := range tags {
-			availableTags[strings.ToLower(t.Slug)] = t.Slug
+			availableTags[strings.ToLower(t.Slug)] = t.ID
 		}
 	}
 
@@ -323,6 +452,31 @@ func findMatchingTags(meta MetaResponse, info ReleaseInfo) []string {
 		// If parser says "MULTI", check multi.
 		check(info.Language)
 	}
+	
+	// Check detailed languages
+	for _, lang := range info.AudioLanguages {
+		// Normalization for common variants
+		l := strings.ToLower(lang)
+		if l == "français" { l = "french" }
+		if l == "anglais" { l = "english" }
+		if l == "japonais" { l = "japanese" }
+		check(l)
+	}
+
+	// Check subtitles
+	for _, lang := range info.SubtitleLanguages {
+		l := strings.ToLower(lang)
+		// Check for VOSTFR explicitly if french subs present + non-french audio? 
+		// Or just tag specific subtitle language if available
+		if l == "français" { l = "french" }
+		if l == "anglais" { l = "english" }
+		
+		// Some trackers use prefixes for subtitles
+		check(l)
+		check("st-" + l)
+		check("sub-" + l)
+	}
+
 	for _, h := range info.Hdr {
 		check(h)
 	}

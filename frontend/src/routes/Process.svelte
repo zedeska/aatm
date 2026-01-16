@@ -1,8 +1,9 @@
 <script lang="ts">
     import { appState } from "../lib/appState.svelte";
-    import { ListDirectory, MarkProcessed, GetMediaInfo, CreateTorrent, OpenFileLocation, SaveNfo, UploadToQBittorrent, UploadToLaCale, DeleteFile } from "../../wailsjs/go/main/App";
+    import { ListDirectory, MarkProcessed, GetMediaInfo, CreateTorrent, OpenFileLocation, SaveNfo, UploadToQBittorrent, RemoveFromQBittorrent, UploadToLaCale, DeleteFile } from "../../wailsjs/go/main/App";
     import { navigate } from "../router";
     import { parseReleaseName, type ReleaseInfo } from "../lib/parser";
+    import { generatePresentation } from "../lib/presentation";
     import Icon from '@iconify/svelte';
 
     let step: 'select-type' | 'process' = $state('select-type');
@@ -38,7 +39,7 @@
     $effect(() => {
         if (workingPath) {
              const namePart = workingPath.split('\\').pop() || "";
-             releaseInfo = parseReleaseName(namePart);
+             releaseInfo = parseReleaseName(namePart, nfoContent);
              // Auto-fill torrent name if empty and we have a valid title/year
              if (!torrentName) {
                  torrentName = namePart;
@@ -65,6 +66,20 @@
 
     const TMDB_API_KEY = "49d8d37e45764e7c6794ed7dd2d896d4";
 
+    async function runFullAuto(item: any) {
+        // 1. Select TMDB Item
+        selectTmdbItem(item);
+        
+        // 2. Generate NFO
+        await generateNfo();
+        
+        // 3. Create Torrent
+        await handleCreateTorrent();
+        
+        // 4. Mark Done (Uploads and finishes)
+        await handleMarkDone();
+    }
+
     async function searchTmdb() {
         if (!tmdbQuery) return;
         tmdbLoading = true;
@@ -76,6 +91,10 @@
             const res = await fetch(`https://api.themoviedb.org/3/search/${type}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(tmdbQuery)}`);
             const data = await res.json();
             tmdbResults = data.results || [];
+
+            if (appState.isFullAuto && tmdbResults.length > 0) {
+                await runFullAuto(tmdbResults[0]);
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -200,7 +219,7 @@
     }
 
     let isUploading = $state(false);
-
+    
     async function cleanupFiles() {
         if (generatedTorrentPath) {
             try {
@@ -255,30 +274,51 @@
             }
 
             // 2. Upload to La Cale
-            if (appState.passkey) {
+            if (appState.passkey && appState.laCaleEmail) {
                 try {
+                    const description = await generatePresentation({
+                        releaseInfo,
+                        tmdbId,
+                        mediaType,
+                        nfoContent
+                    });
+
                     await UploadToLaCale(
                         generatedTorrentPath, 
                         generatedNfoPath, 
                         torrentName, // Title using the torrent name user confirmed
+                        description,
                         tmdbId, 
                         mediaType, 
                         releaseInfo, 
-                        appState.passkey
+                        appState.passkey,
+                        appState.laCaleEmail,
+                        appState.laCalePassword
                     );
                 } catch (e) {
                     console.error("La Cale upload error:", e);
-                    alert("La Cale upload failed: " + e);
+                    
+                    // Rollback qBittorrent if needed
+                    if (appState.qbitUrl) {
+                        try {
+                            console.log("Rolling back qBittorrent upload...");
+                            await RemoveFromQBittorrent(generatedTorrentPath, appState.qbitUrl, appState.qbitUsername, appState.qbitPassword);
+                        } catch (rbError) {
+                            console.error("Rollback failed:", rbError);
+                        }
+                    }
+
+                    alert("La Cale upload failed: " + e + "\n(Rolled back qBittorrent upload if applicable)");
                     isUploading = false;
                     await cleanupFiles();
                     return;
                 }
             } else {
-                 if (!confirm("No passkey configured! Skipping La Cale upload. Mark as done locally?")) {
+                    if (!confirm("Missing La Cale settings (Passkey or Email)! Skipping La Cale upload. Mark as done locally?")) {
                     isUploading = false;
                     await cleanupFiles();
                     return;
-                 }
+                    }
             }
 
             // 3. Mark Done
@@ -481,6 +521,20 @@
                                     {releaseInfo.audio}
                                 </span>
                             {/if}
+                            {#if releaseInfo.audioLanguages && releaseInfo.audioLanguages.length > 0}
+                                {#each releaseInfo.audioLanguages as lang}
+                                    <span class="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-xs font-mono text-red-400 flex items-center gap-1">
+                                        <Icon icon="mdi:microphone" class="w-3 h-3" /> {lang}
+                                    </span>
+                                {/each}
+                            {/if}
+                            {#if releaseInfo.subtitleLanguages && releaseInfo.subtitleLanguages.length > 0}
+                                {#each releaseInfo.subtitleLanguages as lang}
+                                    <span class="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-xs font-mono text-gray-400 flex items-center gap-1">
+                                        <Icon icon="mdi:subtitles" class="w-3 h-3" /> {lang}
+                                    </span>
+                                {/each}
+                            {/if}
                             {#if releaseInfo.audioChannels}
                                 <span class="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-xs font-mono text-orange-400">
                                     {releaseInfo.audioChannels}
@@ -675,7 +729,7 @@
                 </div>
 
                 <!-- 5. Complete -->
-                <div class="pt-8 border-t border-zinc-800 flex justify-end gap-4">
+                <div class="pt-8 border-t border-zinc-800 flex items-center justify-end gap-4">
                     <button 
                         onclick={handleCancel} 
                         class="px-6 py-3 text-gray-400 hover:text-white font-medium"

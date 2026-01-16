@@ -2,3 +2,5 @@ build/bin
 node_modules
 frontend/dist
 openapi.yaml
+api_exemple.txt
+meta.json

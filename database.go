@@ -17,9 +17,14 @@ type AppSettings struct {
 	TorrentTrackers  string `json:"torrentTrackers"`
 	IsPrivateTorrent bool   `json:"isPrivateTorrent"`
 	Passkey          string `json:"passkey"`
+	LaCaleEmail      string `json:"laCaleEmail"`
+	LaCalePassword   string `json:"laCalePassword"`
 	QbitUrl          string `json:"qbitUrl"`
 	QbitUsername     string `json:"qbitUsername"`
 	QbitPassword     string `json:"qbitPassword"`
+	ShowProcessed    bool   `json:"showProcessed"`
+	ShowNotProcessed bool   `json:"showNotProcessed"`
+	IsFullAuto       bool   `json:"isFullAuto"`
 }
 
 // InitDB initializes the SQLite database
