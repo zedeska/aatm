@@ -9,6 +9,8 @@ export interface ReleaseInfo {
   audio?: string;
   audioChannels?: string;
   language?: string;
+  audioLanguages?: string[];
+  subtitleLanguages?: string[];
   hdr?: string[];
   releaseGroup?: string;
 }
@@ -73,6 +75,9 @@ function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
   let frenchAudio = false;
   let nonFrenchAudio = false;
   let frenchSub = false;
+
+  const audioLangs = new Set<string>();
+  const subLangs = new Set<string>();
   
   for (const s of sections) {
       const isAudio = s.match(/^Audio/im) || (s.includes('ID') && s.includes('Format') && s.includes('Channel(s)')); 
@@ -82,19 +87,27 @@ function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
            // It's an audio section (Check language)
            const langMatch = s.match(/Language\s*:\s*([^\r\n]+)/i);
            if (langMatch) {
-               const lang = langMatch[1].trim().toLowerCase();
-               if (lang.includes('french') || lang.includes('français')) frenchAudio = true;
+               const lang = langMatch[1].trim(); 
+               const lowerLang = lang.toLowerCase();
+               audioLangs.add(lang); // Keep original casing or capitalize it? Usually standard case like "English", "French" etc.
+
+               if (lowerLang.includes('french') || lowerLang.includes('français')) frenchAudio = true;
                else nonFrenchAudio = true;
            }
       } else if (isText) {
            // Subtitles
            const langMatch = s.match(/Language\s*:\s*([^\r\n]+)/i);
            if (langMatch) {
-               const lang = langMatch[1].trim().toLowerCase();
-               if (lang.includes('french') || lang.includes('français')) frenchSub = true;
+               const lang = langMatch[1].trim();
+               subLangs.add(lang);
+               const lowerLang = lang.toLowerCase();
+               if (lowerLang.includes('french') || lowerLang.includes('français')) frenchSub = true;
            }
       }
   }
+
+  if (audioLangs.size > 0) info.audioLanguages = Array.from(audioLangs);
+  if (subLangs.size > 0) info.subtitleLanguages = Array.from(subLangs);
 
   if (frenchAudio && nonFrenchAudio) info.language = 'MULTi';
   else if (frenchAudio) info.language = 'FRENCH';
@@ -259,6 +272,12 @@ export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo
       if (nfoInfo.audio) info.audio = nfoInfo.audio;
       if (nfoInfo.audioChannels) info.audioChannels = nfoInfo.audioChannels;
       if (nfoInfo.hdr) info.hdr = nfoInfo.hdr;
+      if (nfoInfo.audioLanguages) info.audioLanguages = nfoInfo.audioLanguages;
+      if (nfoInfo.subtitleLanguages) info.subtitleLanguages = nfoInfo.subtitleLanguages;
+      // We keep filename based language if nfo is ambiguous, but usually nfo is better?
+      // For now, if nfo detected multi/french, we might want to override. 
+      // Existing logic does not override info.language yet, let's add it if nfo has it
+      if (nfoInfo.language) info.language = nfoInfo.language;
   }
 
   return info;

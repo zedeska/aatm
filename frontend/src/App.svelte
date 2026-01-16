@@ -19,7 +19,7 @@
   </div>
   
 
-  <div class="flex flex-col justify-center items-center w-full h-full">
+  <div class="flex flex-col justify-center items-center w-full h-full relative">
     <Router />
   </div>
   

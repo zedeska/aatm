@@ -61,7 +61,24 @@ export async function generatePresentation(data: PresentationData): Promise<stri
     const resolution = releaseInfo.resolution || (nfoContent.includes('Height') ? 'Unknown' : 'Unknown'); // Logic in parser.ts usually handles this
     const video = releaseInfo.codec || "Unknown";
     const audio = releaseInfo.audio || "Unknown";
-    const language = releaseInfo.language || "Unknown"; // parser.ts extracts language tag like MULTI, VFF etc.
+    
+    // Detailed Languages
+    let language = releaseInfo.language || "Unknown"; 
+    if (releaseInfo.audioLanguages && releaseInfo.audioLanguages.length > 0) {
+        language = releaseInfo.audioLanguages.join(", ");
+    }
+
+    // Detailed Subtitles
+    if (releaseInfo.subtitleLanguages && releaseInfo.subtitleLanguages.length > 0) {
+        subs = releaseInfo.subtitleLanguages.join(", ");
+    } else if (subs === "Aucun" && (nfoContent.match(/(?:Text|Subtitle)\s*#\d+/i))) {
+        // Fallback to heuristic if array is empty but subtitles detected
+        if (nfoContent.match(/(?:Language|Language\s*:\s*French)/i)) {
+             subs = "Français (Inclus)";
+         } else {
+             subs = "Inclus";
+         }
+    }
     
     // Build HTML
     return `

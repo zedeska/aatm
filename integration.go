@@ -15,18 +15,20 @@ import (
 
 // ReleaseInfo matches the typescript interface
 type ReleaseInfo struct {
-	Title         string   `json:"title"`
-	Year          string   `json:"year"`
-	Season        string   `json:"season"`
-	Episode       string   `json:"episode"`
-	Resolution    string   `json:"resolution"`
-	Source        string   `json:"source"`
-	Codec         string   `json:"codec"`
-	Audio         string   `json:"audio"`
-	AudioChannels string   `json:"audioChannels"`
-	Language      string   `json:"language"`
-	Hdr           []string `json:"hdr"`
-	ReleaseGroup  string   `json:"releaseGroup"`
+	Title             string   `json:"title"`
+	Year              string   `json:"year"`
+	Season            string   `json:"season"`
+	Episode           string   `json:"episode"`
+	Resolution        string   `json:"resolution"`
+	Source            string   `json:"source"`
+	Codec             string   `json:"codec"`
+	Audio             string   `json:"audio"`
+	AudioChannels     string   `json:"audioChannels"`
+	Language          string   `json:"language"`
+	AudioLanguages    []string `json:"audioLanguages"`
+	SubtitleLanguages []string `json:"subtitleLanguages"`
+	Hdr               []string `json:"hdr"`
+	ReleaseGroup      string   `json:"releaseGroup"`
 }
 
 // Meta structures for La Cale API
@@ -391,6 +393,31 @@ func findMatchingTags(meta MetaResponse, info ReleaseInfo) []string {
 		// If parser says "MULTI", check multi.
 		check(info.Language)
 	}
+	
+	// Check detailed languages
+	for _, lang := range info.AudioLanguages {
+		// Normalization for common variants
+		l := strings.ToLower(lang)
+		if l == "français" { l = "french" }
+		if l == "anglais" { l = "english" }
+		if l == "japonais" { l = "japanese" }
+		check(l)
+	}
+
+	// Check subtitles
+	for _, lang := range info.SubtitleLanguages {
+		l := strings.ToLower(lang)
+		// Check for VOSTFR explicitly if french subs present + non-french audio? 
+		// Or just tag specific subtitle language if available
+		if l == "français" { l = "french" }
+		if l == "anglais" { l = "english" }
+		
+		// Some trackers use prefixes for subtitles
+		check(l)
+		check("st-" + l)
+		check("sub-" + l)
+	}
+
 	for _, h := range info.Hdr {
 		check(h)
 	}

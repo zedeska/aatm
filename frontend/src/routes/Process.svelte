@@ -201,8 +201,7 @@
     }
 
     let isUploading = $state(false);
-    let shouldUploadToLaCale = $state(true);
-
+    
     async function cleanupFiles() {
         if (generatedTorrentPath) {
             try {
@@ -257,42 +256,40 @@
             }
 
             // 2. Upload to La Cale
-            if (shouldUploadToLaCale) {
-                if (appState.passkey && appState.laCaleEmail) {
-                    try {
-                        const description = await generatePresentation({
-                            releaseInfo,
-                            tmdbId,
-                            mediaType,
-                            nfoContent
-                        });
+            if (appState.passkey && appState.laCaleEmail) {
+                try {
+                    const description = await generatePresentation({
+                        releaseInfo,
+                        tmdbId,
+                        mediaType,
+                        nfoContent
+                    });
 
-                        await UploadToLaCale(
-                            generatedTorrentPath, 
-                            generatedNfoPath, 
-                            torrentName, // Title using the torrent name user confirmed
-                            description,
-                            tmdbId, 
-                            mediaType, 
-                            releaseInfo, 
-                            appState.passkey,
-                            appState.laCaleEmail,
-                            appState.laCalePassword
-                        );
-                    } catch (e) {
-                        console.error("La Cale upload error:", e);
-                        alert("La Cale upload failed: " + e);
-                        isUploading = false;
-                        await cleanupFiles();
-                        return;
-                    }
-                } else {
-                     if (!confirm("Missing La Cale settings (Passkey or Email)! Skipping La Cale upload. Mark as done locally?")) {
-                        isUploading = false;
-                        await cleanupFiles();
-                        return;
-                     }
+                    await UploadToLaCale(
+                        generatedTorrentPath, 
+                        generatedNfoPath, 
+                        torrentName, // Title using the torrent name user confirmed
+                        description,
+                        tmdbId, 
+                        mediaType, 
+                        releaseInfo, 
+                        appState.passkey,
+                        appState.laCaleEmail,
+                        appState.laCalePassword
+                    );
+                } catch (e) {
+                    console.error("La Cale upload error:", e);
+                    alert("La Cale upload failed: " + e);
+                    isUploading = false;
+                    await cleanupFiles();
+                    return;
                 }
+            } else {
+                    if (!confirm("Missing La Cale settings (Passkey or Email)! Skipping La Cale upload. Mark as done locally?")) {
+                    isUploading = false;
+                    await cleanupFiles();
+                    return;
+                    }
             }
 
             // 3. Mark Done
@@ -690,10 +687,6 @@
 
                 <!-- 5. Complete -->
                 <div class="pt-8 border-t border-zinc-800 flex items-center justify-end gap-4">
-                    <div class="mr-auto flex items-center gap-2">
-                         <input type="checkbox" id="uploadLaCale" bind:checked={shouldUploadToLaCale} class="w-4 h-4 rounded border-zinc-600 text-purple-600 focus:ring-purple-500 bg-zinc-800">
-                         <label for="uploadLaCale" class="text-sm text-zinc-300 cursor-pointer select-none">Upload to La Cale</label>
-                    </div>
                     <button 
                         onclick={handleCancel} 
                         class="px-6 py-3 text-gray-400 hover:text-white font-medium"
