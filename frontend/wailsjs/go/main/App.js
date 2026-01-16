@@ -10,12 +10,20 @@ export function CreateTorrent(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CreateTorrent'](arg1, arg2, arg3, arg4);
 }
 
+export function DeleteFile(arg1) {
+  return window['go']['main']['App']['DeleteFile'](arg1);
+}
+
 export function GetMediaInfo(arg1) {
   return window['go']['main']['App']['GetMediaInfo'](arg1);
 }
 
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
+}
+
+export function LaCaleLogin(arg1, arg2) {
+  return window['go']['main']['App']['LaCaleLogin'](arg1, arg2);
 }
 
 export function ListDirectory(arg1) {
@@ -30,6 +38,10 @@ export function OpenFileLocation(arg1) {
   return window['go']['main']['App']['OpenFileLocation'](arg1);
 }
 
+export function RemoveFromQBittorrent(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['RemoveFromQBittorrent'](arg1, arg2, arg3, arg4);
+}
+
 export function SaveNfo(arg1, arg2) {
   return window['go']['main']['App']['SaveNfo'](arg1, arg2);
 }
@@ -42,8 +54,8 @@ export function SelectDirectory() {
   return window['go']['main']['App']['SelectDirectory']();
 }
 
-export function UploadToLaCale(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
-  return window['go']['main']['App']['UploadToLaCale'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+export function UploadToLaCale(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10) {
+  return window['go']['main']['App']['UploadToLaCale'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
 }
 
 export function UploadToQBittorrent(arg1, arg2, arg3, arg4) {
