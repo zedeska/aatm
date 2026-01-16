@@ -10,7 +10,7 @@
     }
 </script>
 
-<div class="p-6">
+<div class="p-6 items-center">
     <div class="mb-6">
         <h2 class="text-xl font-bold text-purple-400 mb-2">Current Directory</h2>
         <DirectorySelector onrefresh={refreshList} />

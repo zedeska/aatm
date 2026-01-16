@@ -492,6 +492,20 @@
                                     {releaseInfo.audio}
                                 </span>
                             {/if}
+                            {#if releaseInfo.audioLanguages && releaseInfo.audioLanguages.length > 0}
+                                {#each releaseInfo.audioLanguages as lang}
+                                    <span class="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-xs font-mono text-red-400 flex items-center gap-1">
+                                        <Icon icon="mdi:microphone" class="w-3 h-3" /> {lang}
+                                    </span>
+                                {/each}
+                            {/if}
+                            {#if releaseInfo.subtitleLanguages && releaseInfo.subtitleLanguages.length > 0}
+                                {#each releaseInfo.subtitleLanguages as lang}
+                                    <span class="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-xs font-mono text-gray-400 flex items-center gap-1">
+                                        <Icon icon="mdi:subtitles" class="w-3 h-3" /> {lang}
+                                    </span>
+                                {/each}
+                            {/if}
                             {#if releaseInfo.audioChannels}
                                 <span class="px-2 py-1 rounded bg-zinc-800 border border-zinc-600 text-xs font-mono text-orange-400">
                                     {releaseInfo.audioChannels}
