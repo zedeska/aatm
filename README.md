@@ -1,4 +1,4 @@
-# AATM - Assistant d'Upload Automatisé
+# AATM - Amazing Automatic Torrent Maker
 
 ## Description
 
