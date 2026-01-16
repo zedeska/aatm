@@ -188,12 +188,6 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
 		writer.WriteField("tags", tag)
 	}
 
-	// Files
-	// Torrent
-        // Set Content-Type for parts
-        httpHeader := make(map[string][]string) // Helper if we used CreatePart, but let's stick to CreateFormFile for simplicity unless strictness needed.
-        // The prompt showed Content-Type: application/x-bittorrent. CreateFormFile defaults to application/octet-stream if not sniffed.
-        // Let's use CreatePart for full control
 	tFile, err := os.Open(torrentPath)
 	if err != nil {
 		return err
