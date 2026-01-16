@@ -132,7 +132,7 @@ func (a *App) UploadToQBittorrent(torrentPath string, qbitUrl string, username s
 }
 
 // UploadToLaCale uploads the release metadata and files to la-cale.space
-func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, tmdbId string, mediaType string, releaseInfo ReleaseInfo, passkey string) error {
+func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, description string, tmdbId string, mediaType string, releaseInfo ReleaseInfo, passkey string) error {
 	if passkey == "" {
 		return fmt.Errorf("passkey is missing in settings")
 	}
@@ -171,15 +171,15 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, t
 	// Fields
 	writer.WriteField("passkey", passkey)
 	writer.WriteField("title", title)
+	writer.WriteField("description", description)
 	writer.WriteField("categoryId", categoryId)
+	writer.WriteField("isAnonymous", "false")
 	if tmdbId != "" {
 		writer.WriteField("tmdbId", tmdbId)
 		// Map simple mediaType to likely tmdb type
-		tmdbType := "movie"
+		tmdbType := "MOVIE"
 		if mediaType == "episode" || mediaType == "season" {
-			tmdbType = "tv" // or 'show'? OpenAPI says "movie, show, anime etc". Usually 'tv' or 'show'. Let's guess 'tv' or check docs. Docs say "movie, show, anime".
-			// Let's assume 'tv' is safer or check if valid
-			tmdbType = "show"
+			tmdbType = "TV" 
 		}
 		writer.WriteField("tmdbType", tmdbType)
 	}
@@ -190,12 +190,21 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, t
 
 	// Files
 	// Torrent
+        // Set Content-Type for parts
+        httpHeader := make(map[string][]string) // Helper if we used CreatePart, but let's stick to CreateFormFile for simplicity unless strictness needed.
+        // The prompt showed Content-Type: application/x-bittorrent. CreateFormFile defaults to application/octet-stream if not sniffed.
+        // Let's use CreatePart for full control
 	tFile, err := os.Open(torrentPath)
 	if err != nil {
 		return err
 	}
 	defer tFile.Close()
-	tPart, err := writer.CreateFormFile("file", "release.torrent")
+	
+    // Create Torrent Part custom
+    h := make(map[string][]string)
+    h["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="file"; filename="release.torrent"`)}
+    h["Content-Type"] = []string{"application/x-bittorrent"}
+	tPart, err := writer.CreatePart(h)
 	if err != nil {
 		return err
 	}
@@ -207,7 +216,12 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, t
 		return err
 	}
 	defer nFile.Close()
-	nPart, err := writer.CreateFormFile("nfoFile", "release.nfo")
+	
+    // Create NFO Part custom
+    hNfo := make(map[string][]string)
+    hNfo["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="nfoFile"; filename="release.nfo"`)}
+    hNfo["Content-Type"] = []string{"text/x-nfo"}
+	nPart, err := writer.CreatePart(hNfo)
 	if err != nil {
 		return err
 	}
@@ -271,11 +285,11 @@ func findCategoryId(categories []Category, mediaType string) string {
 
 func findMatchingTags(meta MetaResponse, info ReleaseInfo) []string {
 	// Gather all available tags into a map for easy lookup by slug
-	availableTags := make(map[string]string) // lowercase slug -> actual slug
+	availableTags := make(map[string]string) // lowercase slug -> ID
 
 	collectTags := func(tags []Tag) {
 		for _, t := range tags {
-			availableTags[strings.ToLower(t.Slug)] = t.Slug
+			availableTags[strings.ToLower(t.Slug)] = t.ID
 		}
 	}
 

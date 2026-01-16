@@ -42,8 +42,8 @@ export function SelectDirectory() {
   return window['go']['main']['App']['SelectDirectory']();
 }
 
-export function UploadToLaCale(arg1, arg2, arg3, arg4, arg5, arg6, arg7) {
-  return window['go']['main']['App']['UploadToLaCale'](arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+export function UploadToLaCale(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+  return window['go']['main']['App']['UploadToLaCale'](arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
 export function UploadToQBittorrent(arg1, arg2, arg3, arg4) {

@@ -13,7 +13,68 @@ export interface ReleaseInfo {
   releaseGroup?: string;
 }
 
-export function parseReleaseName(name: string): ReleaseInfo {
+function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
+  const info: Partial<ReleaseInfo> = {};
+
+  // resolution
+  if (nfo.includes('Height')) {
+      const match = nfo.match(/Height\s*:\s*(\d+)/);
+      if (match) {
+          const h = parseInt(match[1], 10);
+          if (h >= 2100) info.resolution = '2160p';
+          else if (h >= 1000) info.resolution = '1080p';
+          else if (h >= 700) info.resolution = '720p';
+          else if (h >= 570) info.resolution = '576p'; 
+          else info.resolution = '480p';
+      }
+  }
+
+  // Codec
+  if (nfo.match(/Format\s*:\s*HEVC/i) || nfo.match(/Writing library\s*:\s*x265/i)) {
+      info.codec = 'x265';
+  } else if (nfo.match(/Format\s*:\s*AVC/i) || nfo.match(/Writing library\s*:\s*x264/i)) {
+      info.codec = 'x264';
+  }
+
+  // Audio & Channels
+  // We try to find the "best" audio or just the first one. 
+  // Simple regex scan for keywords might be safer than assuming position.
+  
+  if (nfo.match(/Format\s*:\s*E-AC-3/i)) info.audio = 'EAC3';
+  else if (nfo.match(/Format\s*:\s*AC-3/i)) info.audio = 'AC3';
+  else if (nfo.match(/Format\s*:\s*DTS\s*X/i)) info.audio = 'DTS-X'; // Specifics
+  else if (nfo.match(/Format\s*:\s*DTS-HD/i)) info.audio = 'DTS-HD';
+  else if (nfo.match(/Format\s*:\s*DTS/i)) info.audio = 'DTS';
+  else if (nfo.match(/Format\s*:\s*TrueHD/i)) info.audio = 'TrueHD';
+  else if (nfo.match(/Format\s*:\s*AAC/i)) info.audio = 'AAC';
+  else if (nfo.match(/Format\s*:\s*FLAC/i)) info.audio = 'FLAC';
+  else if (nfo.match(/Format\s*:\s*Opus/i)) info.audio = 'Opus';
+
+  // Channels
+  // Max channels found
+  const channelMatches = [...nfo.matchAll(/Channel\(s\)\s*:\s*(\d+)/g)];
+  if (channelMatches.length > 0) {
+      // Find max channels
+      const maxCh = Math.max(...channelMatches.map(m => parseInt(m[1], 10)));
+      if (maxCh === 8) info.audioChannels = '7.1';
+      else if (maxCh === 6) info.audioChannels = '5.1';
+      else if (maxCh === 2) info.audioChannels = '2.0';
+      else if (maxCh === 1) info.audioChannels = '1.0';
+  }
+
+  // HDR
+  const hdr: string[] = [];
+  if (nfo.includes('HDR10+')) hdr.push('HDR10+');
+  else if (nfo.includes('HDR10') || nfo.match(/SMPTE ST 2086/)) hdr.push('HDR10');
+  
+  if (nfo.includes('Dolby Vision') || nfo.includes('DV')) hdr.push('DV');
+  
+  if (hdr.length > 0) info.hdr = hdr;
+
+  return info;
+}
+
+export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo {
   const info: ReleaseInfo = {};
   let cleanName = name.trim();
 
@@ -153,5 +214,14 @@ export function parseReleaseName(name: string): ReleaseInfo {
 
   // Release Group (already extracted, but checking if it was inside the title area strictly shouldn't happen in standard naming)
   
+  if (nfoContent) {
+      const nfoInfo = parseMediaInfo(nfoContent);
+      if (nfoInfo.resolution) info.resolution = nfoInfo.resolution;
+      if (nfoInfo.codec) info.codec = nfoInfo.codec;
+      if (nfoInfo.audio) info.audio = nfoInfo.audio;
+      if (nfoInfo.audioChannels) info.audioChannels = nfoInfo.audioChannels;
+      if (nfoInfo.hdr) info.hdr = nfoInfo.hdr;
+  }
+
   return info;
 }
