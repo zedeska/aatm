@@ -7,6 +7,10 @@ export class AppState {
     isPrivateTorrent = $state(false);
     passkey = $state("");
     
+    // La Cale settings
+    laCaleEmail = $state("");
+    laCalePassword = $state("");
+    
     // QBit settings
     qbitUrl = $state("");
     qbitUsername = $state("");
@@ -27,6 +31,8 @@ export class AppState {
                 this.torrentTrackers = settings.torrentTrackers || "";
                 this.isPrivateTorrent = settings.isPrivateTorrent || false;
                 this.passkey = settings.passkey || "";
+                this.laCaleEmail = settings.laCaleEmail || "";
+                this.laCalePassword = settings.laCalePassword || "";
                 this.qbitUrl = settings.qbitUrl || "";
                 this.qbitUsername = settings.qbitUsername || "";
                 this.qbitPassword = settings.qbitPassword || "";
@@ -42,6 +48,8 @@ export class AppState {
                 torrentTrackers: this.torrentTrackers,
                 isPrivateTorrent: this.isPrivateTorrent,
                 passkey: this.passkey,
+                laCaleEmail: this.laCaleEmail,
+                laCalePassword: this.laCalePassword,
                 qbitUrl: this.qbitUrl,
                 qbitUsername: this.qbitUsername,
                 qbitPassword: this.qbitPassword,

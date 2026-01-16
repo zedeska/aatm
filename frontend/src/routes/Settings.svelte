@@ -37,6 +37,35 @@
             />
         </div>
 
+        <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-2">
+                <label for="lacale-email" class="block text-sm font-medium text-gray-300">
+                    La-Cale Email
+                </label>
+                <input
+                    type="email"
+                    id="lacale-email"
+                    bind:value={appState.laCaleEmail}
+                    onchange={() => appState.save()}
+                    class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-gray-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors placeholder-zinc-600"
+                    placeholder="email@example.com"
+                />
+            </div>
+            <div class="space-y-2">
+                <label for="lacale-password" class="block text-sm font-medium text-gray-300">
+                    La-Cale Password
+                </label>
+                <input
+                    type="password"
+                    id="lacale-password"
+                    bind:value={appState.laCalePassword}
+                    onchange={() => appState.save()}
+                    class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-gray-200 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors placeholder-zinc-600"
+                    placeholder="••••••••"
+                />
+            </div>
+        </div>
+
         <div class="space-y-2">
             <label for="trackers" class="block text-sm font-medium text-gray-300">
                 Torrent Trackers (one per line)

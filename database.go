@@ -17,6 +17,8 @@ type AppSettings struct {
 	TorrentTrackers  string `json:"torrentTrackers"`
 	IsPrivateTorrent bool   `json:"isPrivateTorrent"`
 	Passkey          string `json:"passkey"`
+	LaCaleEmail      string `json:"laCaleEmail"`
+	LaCalePassword   string `json:"laCalePassword"`
 	QbitUrl          string `json:"qbitUrl"`
 	QbitUsername     string `json:"qbitUsername"`
 	QbitPassword     string `json:"qbitPassword"`

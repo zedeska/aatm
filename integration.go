@@ -132,14 +132,16 @@ func (a *App) UploadToQBittorrent(torrentPath string, qbitUrl string, username s
 }
 
 // UploadToLaCale uploads the release metadata and files to la-cale.space
-func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, description string, tmdbId string, mediaType string, releaseInfo ReleaseInfo, passkey string) error {
+func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, description string, tmdbId string, mediaType string, releaseInfo ReleaseInfo, passkey string, email string, password string) error {
 	if passkey == "" {
-		return fmt.Errorf("passkey is missing in settings")
+		return fmt.Errorf("passkey is missing in settings (required for metadata)")
+	}
+	if email == "" || password == "" {
+		return fmt.Errorf("email and password are required for upload authentication")
 	}
 
+	// 1. Fetch Metadata (Categories & Tags) - Uses External API (Passkey)
 	baseURL := "https://la-cale.space/api/external"
-
-	// 1. Fetch Metadata (Categories & Tags)
 	metaResp, err := http.Get(fmt.Sprintf("%s/meta?passkey=%s", baseURL, passkey))
 	if err != nil {
 		return fmt.Errorf("failed to fetch metadata: %w", err)
@@ -164,12 +166,20 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
 	// 3. Identify Tags
 	matchedTags := findMatchingTags(meta, releaseInfo)
 
-	// 4. Upload
+	// 4. Authenticate (Get Session)
+	client, err := a.LaCaleLogin(email, password)
+	if err != nil {
+		return fmt.Errorf("La Cale Login failed: %w", err)
+	}
+
+	// 5. Upload (Internal API)
+	internalURL := "https://la-cale.space/api/internal"
+	
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
 	// Fields
-	writer.WriteField("passkey", passkey)
+	// writer.WriteField("passkey", passkey) // Removed as we use session
 	writer.WriteField("title", title)
 	writer.WriteField("description", description)
 	writer.WriteField("categoryId", categoryId)
@@ -226,13 +236,13 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
     // Debug Print (Truncated for sanity, but enough to see structure)
     fmt.Printf("--- Payload Preview (First 2000 chars) ---\n%s\n--- End Preview ---\n", string(body.Bytes()[:min(2000, body.Len())]))
 
-	req, err := http.NewRequest("POST", baseURL+"/upload", body)
+	req, err := http.NewRequest("POST", internalURL+"/torrents/upload", body)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	uploadResp, err := http.DefaultClient.Do(req)
+	uploadResp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("upload request failed: %w", err)
 	}
@@ -247,6 +257,46 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
 	}
 
 	return nil
+}
+
+type LoginResponse struct {
+	Success bool `json:"success"`
+}
+
+func (a *App) LaCaleLogin(email, password string) (*http.Client, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, err
+	}
+	client := &http.Client{Jar: jar}
+
+	// 1. Auth Login
+	authBody, _ := json.Marshal(map[string]string{
+		"email":    email,
+		"password": password,
+	})
+
+	resp, err := client.Post("https://la-cale.space/api/internal/auth/login", "application/json", bytes.NewBuffer(authBody))
+	if err != nil {
+		return nil, fmt.Errorf("login request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("login failed with status %d: %s", resp.StatusCode, string(b))
+	}
+
+	var res LoginResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode login response: %w", err)
+	}
+
+	if !res.Success {
+		return nil, fmt.Errorf("login was unsuccessful (success: false)")
+	}
+
+	return client, nil
 }
 
 // Helpers

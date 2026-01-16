@@ -258,7 +258,7 @@
 
             // 2. Upload to La Cale
             if (shouldUploadToLaCale) {
-                if (appState.passkey) {
+                if (appState.passkey && appState.laCaleEmail) {
                     try {
                         const description = await generatePresentation({
                             releaseInfo,
@@ -275,7 +275,9 @@
                             tmdbId, 
                             mediaType, 
                             releaseInfo, 
-                            appState.passkey
+                            appState.passkey,
+                            appState.laCaleEmail,
+                            appState.laCalePassword
                         );
                     } catch (e) {
                         console.error("La Cale upload error:", e);
@@ -285,7 +287,7 @@
                         return;
                     }
                 } else {
-                     if (!confirm("No passkey configured! Skipping La Cale upload. Mark as done locally?")) {
+                     if (!confirm("Missing La Cale settings (Passkey or Email)! Skipping La Cale upload. Mark as done locally?")) {
                         isUploading = false;
                         await cleanupFiles();
                         return;
