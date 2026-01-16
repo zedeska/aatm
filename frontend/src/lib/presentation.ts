@@ -61,6 +61,7 @@ export async function generatePresentation(data: PresentationData): Promise<stri
     const resolution = releaseInfo.resolution || (nfoContent.includes('Height') ? 'Unknown' : 'Unknown'); // Logic in parser.ts usually handles this
     const video = releaseInfo.codec || "Unknown";
     const audio = releaseInfo.audio || "Unknown";
+    const source = releaseInfo.source || "Unknown";
     
     // Detailed Languages
     let language = releaseInfo.language || "Unknown"; 
@@ -103,6 +104,7 @@ export async function generatePresentation(data: PresentationData): Promise<stri
             <h3 style="color: #eab308; border-bottom: 1px solid #333; padding-bottom: 5px;">Informations Techniques</h3>
             <ul style="list-style: none; padding: 0; font-size: 0.9em; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
               <li><strong>Format :</strong> ${format}</li>
+              <li><strong>Source :</strong> ${source}</li>
               <li><strong>Vidéo :</strong> ${video.toUpperCase()}</li>
               <li><strong>Audio :</strong> ${audio.toUpperCase()}</li>
               <li><strong>Langues :</strong> ${language}</li>

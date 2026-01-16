@@ -8,12 +8,13 @@
     let { currentPath } = $props<{ currentPath: string }>();
 
     let files: main.FileInfo[] = $state([]);
-    let showProcessed = $state(true);
-    let showNotProcessed = $state(true);
+    // Removed local state, using appState
+    // let showProcessed = $state(true);
+    // let showNotProcessed = $state(true);
 
     let filteredFiles = $derived(files.filter(f => {
-        if (f.isProcessed && !showProcessed) return false;
-        if (!f.isProcessed && !showNotProcessed) return false;
+        if (f.isProcessed && !appState.showProcessed) return false;
+        if (!f.isProcessed && !appState.showNotProcessed) return false;
         return true;
     }));
 
@@ -75,19 +76,19 @@
                         <span>Type</span>
                         <div class="flex items-center gap-3 border-l border-zinc-700 pl-4 ml-2">
                             <button 
-                                onclick={() => showProcessed = !showProcessed}
-                                class="flex items-center gap-1.5 cursor-pointer transition-colors outline-none {showProcessed ? 'text-purple-400' : 'text-zinc-500 hover:text-purple-400'}"
+                                onclick={() => { appState.showProcessed = !appState.showProcessed; appState.save(); }}
+                                class="flex items-center gap-1.5 cursor-pointer transition-colors outline-none {appState.showProcessed ? 'text-purple-400' : 'text-zinc-500 hover:text-purple-400'}"
                                 title="Toggle Processed Files"
                             >
-                                <Icon icon={showProcessed ? "mdi:checkbox-marked-circle" : "mdi:checkbox-blank-circle-outline"} />
+                                <Icon icon={appState.showProcessed ? "mdi:checkbox-marked-circle" : "mdi:checkbox-blank-circle-outline"} />
                                 <span class="text-[10px] font-bold">PROCESSED</span>
                             </button>
                             <button 
-                                onclick={() => showNotProcessed = !showNotProcessed}
-                                class="flex items-center gap-1.5 cursor-pointer transition-colors outline-none {showNotProcessed ? 'text-purple-400' : 'text-zinc-500 hover:text-purple-400'}"
+                                onclick={() => { appState.showNotProcessed = !appState.showNotProcessed; appState.save(); }}
+                                class="flex items-center gap-1.5 cursor-pointer transition-colors outline-none {appState.showNotProcessed ? 'text-purple-400' : 'text-zinc-500 hover:text-purple-400'}"
                                 title="Toggle Unprocessed Files"
                             >
-                                <Icon icon={showNotProcessed ? "mdi:checkbox-marked-circle" : "mdi:checkbox-blank-circle-outline"} />
+                                <Icon icon={appState.showNotProcessed ? "mdi:checkbox-marked-circle" : "mdi:checkbox-blank-circle-outline"} />
                                 <span class="text-[10px] font-bold">UNPROCESSED</span>
                             </button>
                         </div>
@@ -132,6 +133,14 @@
                                 class="inline-flex items-center px-3 py-1.5 border border-zinc-600 text-xs font-medium rounded text-gray-300 bg-transparent hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
                             >
                                 Mark Done
+                            </button>
+                        {:else}
+                            <button 
+                                onclick={() => handleProcess(currentPath + '\\' + file.name, file.isDir)}
+                                class="inline-flex items-center px-3 py-1.5 border border-zinc-600 text-xs font-medium rounded text-gray-300 bg-transparent hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 transition-colors"
+                            >
+                                <Icon icon="mdi:refresh" class="mr-1.5 md:text-lg" />
+                                Re-process
                             </button>
                         {/if}
                     </td>

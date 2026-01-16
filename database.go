@@ -22,6 +22,9 @@ type AppSettings struct {
 	QbitUrl          string `json:"qbitUrl"`
 	QbitUsername     string `json:"qbitUsername"`
 	QbitPassword     string `json:"qbitPassword"`
+	ShowProcessed    bool   `json:"showProcessed"`
+	ShowNotProcessed bool   `json:"showNotProcessed"`
+	IsFullAuto       bool   `json:"isFullAuto"`
 }
 
 // InitDB initializes the SQLite database

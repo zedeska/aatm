@@ -95,6 +95,21 @@
             </label>
         </div>
 
+        <!-- Full Automatic Section -->
+        <div class="flex items-center space-x-3 p-4 bg-zinc-900 border border-zinc-700 rounded-lg">
+            <input
+                type="checkbox"
+                id="full-auto"
+                bind:checked={appState.isFullAuto}
+                onchange={() => appState.save()}
+                class="w-5 h-5 text-purple-600 bg-zinc-800 border-zinc-600 rounded focus:ring-purple-500 focus:ring-offset-zinc-900"
+            />
+            <label for="full-auto" class="flex flex-col cursor-pointer select-none">
+                <span class="text-gray-200 font-medium">Full Automatic Mode</span>
+                <span class="text-xs text-zinc-500">Automatically select best match, generate files, and upload after type selection.</span>
+            </label>
+        </div>
+
         <!-- qBittorrent Section -->
         <div class="space-y-4 pt-6 border-t border-zinc-800">
             <h3 class="text-lg font-semibold text-purple-400">qBittorrent Configuration</h3>

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { appState } from "../lib/appState.svelte";
-    import { ListDirectory, MarkProcessed, GetMediaInfo, CreateTorrent, OpenFileLocation, SaveNfo, UploadToQBittorrent, UploadToLaCale, DeleteFile } from "../../wailsjs/go/main/App";
+    import { ListDirectory, MarkProcessed, GetMediaInfo, CreateTorrent, OpenFileLocation, SaveNfo, UploadToQBittorrent, RemoveFromQBittorrent, UploadToLaCale, DeleteFile } from "../../wailsjs/go/main/App";
     import { navigate } from "../router";
     import { parseReleaseName, type ReleaseInfo } from "../lib/parser";
     import { generatePresentation } from "../lib/presentation";
@@ -66,6 +66,20 @@
 
     const TMDB_API_KEY = "49d8d37e45764e7c6794ed7dd2d896d4";
 
+    async function runFullAuto(item: any) {
+        // 1. Select TMDB Item
+        selectTmdbItem(item);
+        
+        // 2. Generate NFO
+        await generateNfo();
+        
+        // 3. Create Torrent
+        await handleCreateTorrent();
+        
+        // 4. Mark Done (Uploads and finishes)
+        await handleMarkDone();
+    }
+
     async function searchTmdb() {
         if (!tmdbQuery) return;
         tmdbLoading = true;
@@ -77,6 +91,10 @@
             const res = await fetch(`https://api.themoviedb.org/3/search/${type}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(tmdbQuery)}`);
             const data = await res.json();
             tmdbResults = data.results || [];
+
+            if (appState.isFullAuto && tmdbResults.length > 0) {
+                await runFullAuto(tmdbResults[0]);
+            }
         } catch (e) {
             console.error(e);
         } finally {
@@ -279,7 +297,18 @@
                     );
                 } catch (e) {
                     console.error("La Cale upload error:", e);
-                    alert("La Cale upload failed: " + e);
+                    
+                    // Rollback qBittorrent if needed
+                    if (appState.qbitUrl) {
+                        try {
+                            console.log("Rolling back qBittorrent upload...");
+                            await RemoveFromQBittorrent(generatedTorrentPath, appState.qbitUrl, appState.qbitUsername, appState.qbitPassword);
+                        } catch (rbError) {
+                            console.error("Rollback failed:", rbError);
+                        }
+                    }
+
+                    alert("La Cale upload failed: " + e + "\n(Rolled back qBittorrent upload if applicable)");
                     isUploading = false;
                     await cleanupFiles();
                     return;

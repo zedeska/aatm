@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/anacrolix/torrent/metainfo"
 )
 
 // ReleaseInfo matches the typescript interface
@@ -53,6 +55,63 @@ type MetaResponse struct {
 	Categories    []Category `json:"categories"`
 	TagGroups     []TagGroup `json:"tagGroups"`
 	UngroupedTags []Tag      `json:"ungroupedTags"`
+}
+
+// RemoveFromQBittorrent removes the torrent from qBittorrent without deleting files
+func (a *App) RemoveFromQBittorrent(torrentPath string, qbitUrl string, username string, password string) error {
+	if qbitUrl == "" {
+		return nil
+	}
+
+	// 1. Get InfoHash from file
+	mi, err := metainfo.LoadFromFile(torrentPath)
+	if err != nil {
+		return fmt.Errorf("failed to load torrent file: %w", err)
+	}
+	infoHash := mi.HashInfoBytes().HexString()
+
+	// 2. Login
+	qbitUrl = strings.TrimSuffix(qbitUrl, "/")
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Jar: jar}
+
+	if username != "" || password != "" {
+		vals := url.Values{}
+		vals.Set("username", username)
+		vals.Set("password", password)
+		resp, err := client.PostForm(qbitUrl+"/api/v2/auth/login", vals)
+		if err != nil {
+			return fmt.Errorf("failed to login to qBittorrent: %w", err)
+		}
+		defer resp.Body.Close()
+		// Some versions ensure cookie is set
+	}
+
+	// 3. Delete
+	vals := url.Values{}
+	vals.Set("hashes", infoHash)
+	vals.Set("deleteFiles", "false")
+
+	req, err := http.NewRequest("POST", qbitUrl+"/api/v2/torrents/delete", strings.NewReader(vals.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to delete torrent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("failed to delete torrent, status: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 // UploadToQBittorrent uploads the .torrent file to the configured qBittorrent instance
