@@ -54,8 +54,9 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 Pour compiler sur Windows, vous avez besoin d'un compilateur C (GCC) pour le support CGO.
 *   **Compilateur C** : Nous recommandons [TDM-GCC](https://jmeubank.github.io/tdm-gcc/). Lors de l'installation, choisissez "Create" et laissez les options par défaut.
 *   **WebView2** : Normalement pré-installé sur Windows 10 et 11. Si ce n'est pas le cas, l'installeur "Evergreen Bootstrapper" est requis.
+*   **MediaInfo CLI** : Indispensable pour l'analyse. L'outil `mediainfo` (CLI) doit être installé et accessible dans le **PATH** du système.
 
-*(Note pour Linux : Sur Debian/Ubuntu, installez `libgtk-3-dev` et `libwebkit2gtk-4.0-dev`)*
+*(Note pour Linux : Sur Debian/Ubuntu, installez `libgtk-3-dev`, `libwebkit2gtk-4.0-dev` et `mediainfo`)*
 
 ## 📦 Installation et Compilation
 
