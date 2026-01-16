@@ -196,7 +196,7 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
 	
     // Create Torrent Part custom
     h := make(map[string][]string)
-    h["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="file"; filename="release.torrent"`)}
+    h["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="file"; filename="%s.torrent"`, title)}
     h["Content-Type"] = []string{"application/x-bittorrent"}
 	tPart, err := writer.CreatePart(h)
 	if err != nil {
@@ -213,7 +213,7 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
 	
     // Create NFO Part custom
     hNfo := make(map[string][]string)
-    hNfo["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="nfoFile"; filename="release.nfo"`)}
+    hNfo["Content-Disposition"] = []string{fmt.Sprintf(`form-data; name="nfoFile"; filename="%s.nfo"`, title)}
     hNfo["Content-Type"] = []string{"text/x-nfo"}
 	nPart, err := writer.CreatePart(hNfo)
 	if err != nil {
@@ -222,6 +222,9 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
 	io.Copy(nPart, nFile)
 
 	writer.Close()
+    
+    // Debug Print (Truncated for sanity, but enough to see structure)
+    fmt.Printf("--- Payload Preview (First 2000 chars) ---\n%s\n--- End Preview ---\n", string(body.Bytes()[:min(2000, body.Len())]))
 
 	req, err := http.NewRequest("POST", baseURL+"/upload", body)
 	if err != nil {
@@ -247,6 +250,13 @@ func (a *App) UploadToLaCale(torrentPath string, nfoPath string, title string, d
 }
 
 // Helpers
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
 
 func findCategoryId(categories []Category, mediaType string) string {
 	// Recursive search for keywords
