@@ -18,9 +18,10 @@ function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
 
   // resolution
   if (nfo.includes('Height')) {
-      const match = nfo.match(/Height\s*:\s*(\d+)/);
+      const match = nfo.match(/Height\s*:\s*([\d\s]+)/);
       if (match) {
-          const h = parseInt(match[1], 10);
+          const cleanHeight = match[1].replace(/\s/g, '');
+          const h = parseInt(cleanHeight, 10);
           if (h >= 2100) info.resolution = '2160p';
           else if (h >= 1000) info.resolution = '1080p';
           else if (h >= 700) info.resolution = '720p';
@@ -34,21 +35,24 @@ function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
       info.codec = 'x265';
   } else if (nfo.match(/Format\s*:\s*AVC/i) || nfo.match(/Writing library\s*:\s*x264/i)) {
       info.codec = 'x264';
+  } else if (nfo.match(/Format\s*:\s*AV1/i)) {
+      info.codec = 'AV1';
+  } else if (nfo.match(/Format\s*:\s*MPEG-4\s*Visual/i) || nfo.match(/Format\s*:\s*XviD/i)) {
+      info.codec = 'XviD';
   }
 
   // Audio & Channels
-  // We try to find the "best" audio or just the first one. 
-  // Simple regex scan for keywords might be safer than assuming position.
   
   if (nfo.match(/Format\s*:\s*E-AC-3/i)) info.audio = 'EAC3';
   else if (nfo.match(/Format\s*:\s*AC-3/i)) info.audio = 'AC3';
-  else if (nfo.match(/Format\s*:\s*DTS\s*X/i)) info.audio = 'DTS-X'; // Specifics
+  else if (nfo.match(/Format\s*:\s*DTS\s*X/i)) info.audio = 'DTS-X';
   else if (nfo.match(/Format\s*:\s*DTS-HD/i)) info.audio = 'DTS-HD';
   else if (nfo.match(/Format\s*:\s*DTS/i)) info.audio = 'DTS';
   else if (nfo.match(/Format\s*:\s*TrueHD/i)) info.audio = 'TrueHD';
   else if (nfo.match(/Format\s*:\s*AAC/i)) info.audio = 'AAC';
   else if (nfo.match(/Format\s*:\s*FLAC/i)) info.audio = 'FLAC';
   else if (nfo.match(/Format\s*:\s*Opus/i)) info.audio = 'Opus';
+  else if (nfo.match(/Format\s*:\s*Vorbis/i)) info.audio = 'Vorbis';
 
   // Channels
   // Max channels found
@@ -56,11 +60,45 @@ function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
   if (channelMatches.length > 0) {
       // Find max channels
       const maxCh = Math.max(...channelMatches.map(m => parseInt(m[1], 10)));
-      if (maxCh === 8) info.audioChannels = '7.1';
-      else if (maxCh === 6) info.audioChannels = '5.1';
-      else if (maxCh === 2) info.audioChannels = '2.0';
-      else if (maxCh === 1) info.audioChannels = '1.0';
+      if (maxCh >= 8) info.audioChannels = '7.1';
+      else if (maxCh >= 6) info.audioChannels = '5.1';
+      else if (maxCh >= 2) info.audioChannels = '2.0'; // Sometimes 2.0 is just displayed as 2
+      else if (maxCh >= 1) info.audioChannels = '1.0';
   }
+
+  // Language Detection
+  // Split bits by double newlines or section headers to process audio tracks separately
+  const sections = nfo.split(/(?:\r?\n){2,}/);
+  
+  let frenchAudio = false;
+  let nonFrenchAudio = false;
+  let frenchSub = false;
+  
+  for (const s of sections) {
+      const isAudio = s.match(/^Audio/im) || (s.includes('ID') && s.includes('Format') && s.includes('Channel(s)')); 
+      const isText = s.match(/^(?:Text|Subtitle)/im);
+
+      if (isAudio) {
+           // It's an audio section (Check language)
+           const langMatch = s.match(/Language\s*:\s*([^\r\n]+)/i);
+           if (langMatch) {
+               const lang = langMatch[1].trim().toLowerCase();
+               if (lang.includes('french') || lang.includes('français')) frenchAudio = true;
+               else nonFrenchAudio = true;
+           }
+      } else if (isText) {
+           // Subtitles
+           const langMatch = s.match(/Language\s*:\s*([^\r\n]+)/i);
+           if (langMatch) {
+               const lang = langMatch[1].trim().toLowerCase();
+               if (lang.includes('french') || lang.includes('français')) frenchSub = true;
+           }
+      }
+  }
+
+  if (frenchAudio && nonFrenchAudio) info.language = 'MULTi';
+  else if (frenchAudio) info.language = 'FRENCH';
+  else if (frenchSub) info.language = 'VOSTFR';
 
   // HDR
   const hdr: string[] = [];
