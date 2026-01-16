@@ -12,14 +12,14 @@
 
 
 
-<main class="h-screen w-screen">
+<main class="h-screen w-screen flex flex-col overflow-hidden">
 
-  <div class="fixed top-0 left-0 w-full">
+  <div class="w-full shrink-0 z-50">
     <Nav />
   </div>
   
 
-  <div class="flex flex-col justify-center items-center w-full h-full relative">
+  <div class="flex-1 w-full relative overflow-y-auto">
     <Router />
   </div>
   
