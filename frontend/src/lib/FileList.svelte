@@ -65,6 +65,11 @@
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
+
+    function getFullPath(fileName: string) {
+        const sep = currentPath.includes('\\') ? '\\' : '/';
+        return currentPath.endsWith(sep) ? currentPath + fileName : currentPath + sep + fileName;
+    }
 </script>
 
 <div class="overflow-x-auto rounded-lg border border-zinc-700 bg-zinc-900">
@@ -123,20 +128,20 @@
                     <td class="px-6 py-4 text-right whitespace-nowrap space-x-2">
                         {#if !file.isProcessed}
                             <button 
-                                onclick={() => handleProcess(currentPath + '\\' + file.name, file.isDir)}
+                                onclick={() => handleProcess(getFullPath(file.name), file.isDir)}
                                 class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 bg-zinc-800"
                             >
                                 Process
                             </button>
                             <button 
-                                onclick={() => handleMarkProcessed(currentPath + '\\' + file.name)}
+                                onclick={() => handleMarkProcessed(getFullPath(file.name))}
                                 class="inline-flex items-center px-3 py-1.5 border border-zinc-600 text-xs font-medium rounded text-gray-300 bg-transparent hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500"
                             >
                                 Mark Done
                             </button>
                         {:else}
                             <button 
-                                onclick={() => handleProcess(currentPath + '\\' + file.name, file.isDir)}
+                                onclick={() => handleProcess(getFullPath(file.name), file.isDir)}
                                 class="inline-flex items-center px-3 py-1.5 border border-zinc-600 text-xs font-medium rounded text-gray-300 bg-transparent hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 transition-colors"
                             >
                                 <Icon icon="mdi:refresh" class="mr-1.5 md:text-lg" />

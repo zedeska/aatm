@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	rt "runtime"
 	"strings"
 
 	"github.com/anacrolix/torrent/bencode"
@@ -184,10 +185,30 @@ func (a *App) OpenFileLocation(path string) error {
 	// Ensure path uses OS separators
 	path = filepath.Clean(path)
 
-	// We want to select the file in the directory
-	// On Windows: explorer /select,path
+	var cmd *exec.Cmd
 
-	cmd := exec.Command("explorer", "/select,", path)
+	switch rt.GOOS {
+	case "windows":
+		// On Windows: explorer /select,path
+		cmd = exec.Command("explorer", "/select,", path)
+	case "darwin":
+		// On macOS: open -R path
+		cmd = exec.Command("open", "-R", path)
+	case "linux":
+		// On Linux: xdg-open (directory) using dbus or file manager
+		// xdg-open doesn't support selecting a file in a folder easily across all DMs.
+		// Often just opening the folder is the safest bet.
+		dir := filepath.Dir(path)
+		if fi, err := os.Stat(path); err == nil && fi.IsDir() {
+			dir = path
+		}
+		cmd = exec.Command("xdg-open", dir)
+	default:
+		// Fallback to opening the directory
+		dir := filepath.Dir(path)
+		cmd = exec.Command("xdg-open", dir)
+	}
+
 	return cmd.Start()
 }
 
