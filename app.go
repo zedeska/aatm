@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -59,7 +60,7 @@ func (a *App) ListDirectory(path string) ([]FileInfo, error) {
 		return nil, err
 	}
 
-	var files []FileInfo
+	files := []FileInfo{}
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
@@ -237,4 +238,37 @@ func (a *App) DeleteFile(path string) error {
 		return nil
 	}
 	return os.Remove(path)
+}
+
+// GetDirectorySize calculates the total size of a directory recursively
+func (a *App) GetDirectorySize(path string) (string, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return formatSize(size), nil
+}
+
+func formatSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	// Use explicit precision logic? Or just %.1f
+	// example: 14.5 GiB
+	return fmt.Sprintf("%.1f %ciB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

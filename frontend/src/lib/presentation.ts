@@ -7,10 +7,11 @@ interface PresentationData {
     tmdbId: string;
     mediaType: 'movie' | 'episode' | 'season';
     nfoContent: string;
+    totalSize?: string;
 }
 
 export async function generatePresentation(data: PresentationData): Promise<string> {
-    const { tmdbId, mediaType, releaseInfo, nfoContent } = data;
+    const { tmdbId, mediaType, releaseInfo, nfoContent, totalSize } = data;
     
     // 1. Fetch TMDB Details
     const type = (mediaType === 'movie') ? 'movie' : 'tv';
@@ -35,9 +36,14 @@ export async function generatePresentation(data: PresentationData): Promise<stri
     // 2. Parse Technical Details from NFO
     // Size
     let size = "N/A";
-    const sizeMatch = nfoContent.match(/File\s*size\s*:\s*([0-9.]+\s*[KMGT]?i?B)/i);
-    if (sizeMatch) {
-        size = sizeMatch[1];
+    
+    if (totalSize) {
+        size = totalSize;
+    } else {
+        const sizeMatch = nfoContent.match(/File\s*size\s*:\s*([0-9.]+\s*[KMGT]?i?B)/i);
+        if (sizeMatch) {
+            size = sizeMatch[1];
+        }
     }
     
     // Subs

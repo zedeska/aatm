@@ -41,7 +41,8 @@
 
     async function loadFiles(path: string) {
         try {
-            files = await ListDirectory(path);
+            const result = await ListDirectory(path);
+            files = result || [];
             // Sort: Directories first, then files
             files.sort((a, b) => {
                 if (a.isDir === b.isDir) {

@@ -9,6 +9,8 @@ export function CreateTorrent(arg1:string,arg2:Array<string>,arg3:string,arg4:bo
 
 export function DeleteFile(arg1:string):Promise<void>;
 
+export function GetDirectorySize(arg1:string):Promise<string>;
+
 export function GetMediaInfo(arg1:string):Promise<string>;
 
 export function GetSettings():Promise<main.AppSettings>;

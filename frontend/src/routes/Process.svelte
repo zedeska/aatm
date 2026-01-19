@@ -1,6 +1,6 @@
 <script lang="ts">
     import { appState } from "../lib/appState.svelte";
-    import { ListDirectory, MarkProcessed, GetMediaInfo, CreateTorrent, OpenFileLocation, SaveNfo, UploadToQBittorrent, RemoveFromQBittorrent, UploadToLaCale, DeleteFile } from "../../wailsjs/go/main/App";
+    import { ListDirectory, MarkProcessed, GetMediaInfo, CreateTorrent, OpenFileLocation, SaveNfo, UploadToQBittorrent, RemoveFromQBittorrent, UploadToLaCale, DeleteFile, GetDirectorySize } from "../../wailsjs/go/main/App";
     import { navigate } from "../router";
     import { parseReleaseName, type ReleaseInfo } from "../lib/parser";
     import { generatePresentation } from "../lib/presentation";
@@ -12,6 +12,7 @@
     let analyzingFile = $state("");
     let isGeneratingNfo = $state(false);
     let isCreatingTorrent = $state(false);    
+    let isFullAutoRunning = $state(false);
 
     let isInputDirectory = $derived(appState.processingIsDir);
 
@@ -67,17 +68,26 @@
     const TMDB_API_KEY = "49d8d37e45764e7c6794ed7dd2d896d4";
 
     async function runFullAuto(item: any) {
-        // 1. Select TMDB Item
-        selectTmdbItem(item);
+        if (isFullAutoRunning || isUploading) return;
+        isFullAutoRunning = true;
         
-        // 2. Generate NFO
-        await generateNfo();
-        
-        // 3. Create Torrent
-        await handleCreateTorrent();
-        
-        // 4. Mark Done (Uploads and finishes)
-        await handleMarkDone();
+        try {
+            // 1. Select TMDB Item
+            selectTmdbItem(item);
+            
+            // 2. Generate NFO
+            await generateNfo();
+            
+            // 3. Create Torrent
+            await handleCreateTorrent();
+            
+            // 4. Mark Done (Uploads and finishes)
+            await handleMarkDone();
+        } catch(e) {
+            console.error("Full Auto Failed:", e);
+        } finally {
+            isFullAutoRunning = false;
+        }
     }
 
     async function searchTmdb() {
@@ -248,6 +258,7 @@
 
     async function handleMarkDone() {
         if (!workingPath) return;
+        if (isUploading) return;
         isUploading = true;
 
         try {
@@ -278,11 +289,21 @@
             // 2. Upload to La Cale
             if (appState.passkey && appState.laCaleEmail) {
                 try {
+                    let totalSize = undefined;
+                    if (isInputDirectory && mediaType === 'season') {
+                        try {
+                            totalSize = await GetDirectorySize(workingPath);
+                        } catch (e) {
+                            console.warn("Failed to get total size:", e);
+                        }
+                    }
+
                     const description = await generatePresentation({
                         releaseInfo,
                         tmdbId,
                         mediaType,
-                        nfoContent
+                        nfoContent,
+                        totalSize
                     });
 
                     await UploadToLaCale(

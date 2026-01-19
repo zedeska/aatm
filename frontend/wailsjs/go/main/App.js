@@ -14,6 +14,10 @@ export function DeleteFile(arg1) {
   return window['go']['main']['App']['DeleteFile'](arg1);
 }
 
+export function GetDirectorySize(arg1) {
+  return window['go']['main']['App']['GetDirectorySize'](arg1);
+}
+
 export function GetMediaInfo(arg1) {
   return window['go']['main']['App']['GetMediaInfo'](arg1);
 }
