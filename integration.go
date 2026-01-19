@@ -30,6 +30,7 @@ type ReleaseInfo struct {
 	AudioLanguages    []string `json:"audioLanguages"`
 	SubtitleLanguages []string `json:"subtitleLanguages"`
 	Hdr               []string `json:"hdr"`
+	Tags              []string `json:"tags"`
 	ReleaseGroup      string   `json:"releaseGroup"`
 }
 
@@ -447,6 +448,9 @@ func findMatchingTags(meta MetaResponse, info ReleaseInfo) []string {
 	if info.Audio != "" {
 		check(info.Audio)
 	}
+	if info.AudioChannels != "" {
+		check(info.AudioChannels)
+	}
 	if info.Language != "" {
 		// Parser returns "FRENCH", slug likely "french" or "vff"
 		// If parser says "MULTI", check multi.
@@ -479,6 +483,10 @@ func findMatchingTags(meta MetaResponse, info ReleaseInfo) []string {
 
 	for _, h := range info.Hdr {
 		check(h)
+	}
+
+	for _, t := range info.Tags {
+		check(t)
 	}
 
 	return matched

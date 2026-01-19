@@ -85,6 +85,7 @@ export namespace main {
 	    audioLanguages: string[];
 	    subtitleLanguages: string[];
 	    hdr: string[];
+	    tags: string[];
 	    releaseGroup: string;
 	
 	    static createFrom(source: any = {}) {
@@ -106,6 +107,7 @@ export namespace main {
 	        this.audioLanguages = source["audioLanguages"];
 	        this.subtitleLanguages = source["subtitleLanguages"];
 	        this.hdr = source["hdr"];
+	        this.tags = source["tags"];
 	        this.releaseGroup = source["releaseGroup"];
 	    }
 	}

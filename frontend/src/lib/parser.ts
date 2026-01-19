@@ -12,6 +12,7 @@ export interface ReleaseInfo {
   audioLanguages?: string[];
   subtitleLanguages?: string[];
   hdr?: string[];
+  tags?: string[];
   releaseGroup?: string;
 }
 
@@ -151,9 +152,10 @@ export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo
     source: /\b(BluRay|WEB(?:-?DL)?|WEBRip|DVDRip|HDTV|REMUX|FULL[\s.]?Disc|HDLight|UHD)\b/gi,
     codec: /\b(x264|x265|HEVC|AV1|VC-1|VP9|MPEG-?2|H\.?264|H\.?265|XviD|DivX)\b/gi,
     audio: /\b(EAC3|AC3|AAC|DDP|DTS(?:-HD)?|TrueHD|FLAC|MP3|Atmos|PCM)\b/gi,
-    audioChannels: /\b(2\.0|5\.1|7\.1)\b/g,
+    audioChannels: /\b(1\.0|2\.0|2\.1|5\.1|7\.1)\b/g,
     language: /\b(MULTi|FRENCH|VOF|VOSTFR|SUBFRENCH|TRUEFRENCH|VFF|VFQ|VFi)\b/gi,
     hdr: /\b(HDR(?:10\+?)?|DV|HLG|Dolby\s?Vision)\b/gi,
+    tags: /\b(IMAX)\b/gi,
   };
 
   // Helper to find match and return data, also tracking the earliest index found
@@ -243,6 +245,18 @@ export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo
         if (m.index < firstTagIndex) firstTagIndex = m.index;
     }
     info.hdr = hdrMatches.map(h => h.toUpperCase());
+  }
+
+  // 10. Other Tags (IMAX etc)
+  const tagMatches = cleanName.match(patterns.tags);
+  if (tagMatches) {
+      // Update index
+      let regex = new RegExp(patterns.tags);
+      let m;
+      while ((m = regex.exec(cleanName)) !== null) {
+          if (m.index < firstTagIndex) firstTagIndex = m.index;
+      }
+      info.tags = tagMatches.map(t => t.toUpperCase());
   }
 
   // Extract Title

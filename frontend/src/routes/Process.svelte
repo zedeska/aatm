@@ -38,7 +38,7 @@
     
     $effect(() => {
         if (workingPath) {
-             const namePart = workingPath.split('\\').pop() || "";
+             const namePart = workingPath.split(/[/\\]/).pop() || "";
              releaseInfo = parseReleaseName(namePart, nfoContent);
              // Auto-fill torrent name if empty and we have a valid title/year
              if (!torrentName) {
@@ -147,16 +147,18 @@
                     // Sort alphabetically to handle series consistently
                     videoFiles.sort((a, b) => a.name.localeCompare(b.name));
                     
+                    const sep = path.includes('\\') ? '\\' : '/';
+
                     if (type === 'movie' || type === 'season') {
                         // For movie in folder or season pack, pick first file for analysis
-                        analyzingFile = path + '\\' + videoFiles[0].name;
+                        analyzingFile = path + sep + videoFiles[0].name;
                         // workingPath stays as folder
                     } else if (type === 'episode') {
                         // Single episode in a folder? Usually means user selected the folder.
                         // We'll treat it like season pack for now or maybe we should ask user to select file?
                         // Assuming folder = pack for now, but user said "separate single episode".
                         // If user selects "Single Episode" on a FOLDER, maybe we default to first file too?
-                         analyzingFile = path + '\\' + videoFiles[0].name;
+                         analyzingFile = path + sep + videoFiles[0].name;
                     }
                 }
             } catch (e) {
@@ -188,7 +190,7 @@
         }
         // Series/Season -> workingPath is expected to be the folder if dir, or file if file.
 
-        const namePart = workingPath.split('\\').pop() || "";
+        const namePart = workingPath.split(/[/\\]/).pop() || "";
         torrentName = namePart;
 
         // Reset Search State
