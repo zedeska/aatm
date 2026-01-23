@@ -14,11 +14,21 @@ export interface ReleaseInfo {
   hdr?: string[];
   tags?: string[];
   releaseGroup?: string;
+  container?: string;
+  genres?: string[];
 }
 
 function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
   const info: Partial<ReleaseInfo> = {};
 
+  // Container / Format
+  // Usually starts with "Format : Matroska" or "Format : MPEG-4"
+  // We check the first few lines or valid format lines
+  if (nfo.match(/Format\s*:\s*Matroska/i)) info.container = 'MKV';
+  else if (nfo.match(/Format\s*:\s*MPEG-4/i)) info.container = 'MP4';
+  else if (nfo.match(/Format\s*:\s*AVI/i) || nfo.match(/Format\s*:\s*Audio Video Interleave/i)) info.container = 'AVI';
+  else if (nfo.match(/Format\s*:\s*BDAV/i)) info.container = 'BluRay'; // ISO/Folder structure often
+  
   // resolution
   if (nfo.includes('Height')) {
       const match = nfo.match(/Height\s*:\s*([\d\s]+)/);
@@ -71,6 +81,7 @@ function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
 
   // Language Detection
   // Split bits by double newlines or section headers to process audio tracks separately
+  // We try to rely on "Audio" or "Text" headers more strictly
   const sections = nfo.split(/(?:\r?\n){2,}/);
   
   let frenchAudio = false;
@@ -81,21 +92,29 @@ function parseMediaInfo(nfo: string): Partial<ReleaseInfo> {
   const subLangs = new Set<string>();
   
   for (const s of sections) {
-      const isAudio = s.match(/^Audio/im) || (s.includes('ID') && s.includes('Format') && s.includes('Channel(s)')); 
-      const isText = s.match(/^(?:Text|Subtitle)/im);
-
-      if (isAudio) {
+      // Check for section type headers
+      const audioHeader = s.match(/^Audio\s*(?:#\d+)?/im);
+      const textHeader = s.match(/^(?:Text|Subtitle)\s*(?:#\d+)?/im);
+      
+      // Fallback heuristics if no clear header
+      const hasAudioProps = s.includes('Channel(s)') && s.includes('Sampling rate');
+      
+      if (audioHeader || (!textHeader && hasAudioProps)) {
            // It's an audio section (Check language)
            const langMatch = s.match(/Language\s*:\s*([^\r\n]+)/i);
+           // Special check: sometimes "Language" line is not present for English default, 
+           // but normally MediaInfo lists it.
            if (langMatch) {
                const lang = langMatch[1].trim(); 
+               // Ignore if lang contains "Impaired" or technical details if we strictly want language code/name.
+               // But usually "English", "French" is robust.
                const lowerLang = lang.toLowerCase();
-               audioLangs.add(lang); // Keep original casing or capitalize it? Usually standard case like "English", "French" etc.
+               audioLangs.add(lang);
 
                if (lowerLang.includes('french') || lowerLang.includes('français')) frenchAudio = true;
                else nonFrenchAudio = true;
            }
-      } else if (isText) {
+      } else if (textHeader) {
            // Subtitles
            const langMatch = s.match(/Language\s*:\s*([^\r\n]+)/i);
            if (langMatch) {
@@ -143,20 +162,16 @@ export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo
 
   // Define regex patterns
   // Using case insensitive flags generally, but some specific tags might need care.
+  // user requested to stop analyzing title for tags, only keep basic info
   const patterns = {
     year: /\b(19|20)\d{2}\b/g,
-    resolution: /\b(2160|[48]320|1080|720|576|480)p\b/gi,
+    // resolution: ... disabled
     season: /\b(?:S|Season)\s?(\d{1,2})\b|\b(Complete|Integrale)\b/gi, // Simple Season match
     episode: /\b(?:E|Episode)\s?(\d{1,3})\b/gi,
     seasonEpisode: /\bS(\d{1,2})E(\d{1,3})\b/gi, // Combined S01E01
-    source: /\b(BluRay|WEB(?:-?DL)?|WEBRip|DVDRip|HDTV|REMUX|FULL[\s.]?Disc|HDLight|UHD)\b/gi,
-    codec: /\b(x264|x265|HEVC|AV1|VC-1|VP9|MPEG-?2|H\.?264|H\.?265|XviD|DivX)\b/gi,
-    audio: /\b(EAC3|AC3|AAC|DDP|DTS(?:-HD)?|TrueHD|FLAC|MP3|Atmos|PCM)\b/gi,
-    audioChannels: /\b(1\.0|2\.0|2\.1|5\.1|7\.1)\b/g,
-    language: /\b(MULTi|FRENCH|VOF|VOSTFR|SUBFRENCH|TRUEFRENCH|VFF|VFQ|VFi)\b/gi,
-    hdr: /\b(HDR(?:10\+?)?|DV|HLG|Dolby\s?Vision)\b/gi,
-    tags: /\b(IMAX)\b/gi,
+    source: /\b(Bluray|BluRay|BDRip|BRRip|WEBRip|WebRip|WEB-DL|WEBDL|HDTV|PDTV|DVD|DVDRip)\b/gi,
   };
+
 
   // Helper to find match and return data, also tracking the earliest index found
   let firstTagIndex = cleanName.length;
@@ -178,9 +193,9 @@ export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo
   const yearMatch = findMatch(patterns.year, 'year');
   if (yearMatch) info.year = yearMatch[0];
 
-  // 2. Resolution
-  const resMatch = findMatch(patterns.resolution, 'resolution');
-  if (resMatch) info.resolution = resMatch[0].toLowerCase();
+  // 2. Resolution (Disabled)
+  // const resMatch = findMatch(patterns.resolution, 'resolution');
+  // if (resMatch) info.resolution = resMatch[0].toLowerCase();
 
   // 3. Season/Episode
   // Check for SxxExx first
@@ -209,55 +224,10 @@ export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo
   const sourceMatch = findMatch(patterns.source, 'source');
   if (sourceMatch) info.source = sourceMatch[0];
 
-  // 5. Codec
-  const codecMatch = findMatch(patterns.codec, 'codec');
-  if (codecMatch) {
-      let c = codecMatch[0].toLowerCase();
-      // Normalize
-      if (c === 'h.264') c = 'h264';
-      if (c === 'h.265') c = 'h265';
-      if (c === 'mpeg2') c = 'mpeg';
-      info.codec = c;
-  }
-
-  // 6. Audio
-  const audioMatch = findMatch(patterns.audio, 'audio');
-  if (audioMatch) info.audio = audioMatch[0];
-
-  // 7. Channels
-  const chMatch = findMatch(patterns.audioChannels, 'audioChannels');
-  if (chMatch) info.audioChannels = chMatch[0];
-
-  // 8. Language
-  const langMatch = findMatch(patterns.language, 'language');
-  if (langMatch) info.language = langMatch[0].toUpperCase();
-
-  // 9. HDR - can be multiple
-  const hdrMatches = cleanName.match(patterns.hdr);
-  if (hdrMatches) {
-    // Update firstTagIndex if the first match is earlier
-    // match() returns array of strings, we need to find index manually if we strictly assume title is before *everything*
-    // but usually HDR tags come after resolution/year. 
-    // To be safe, let's just loop matches to find min index
-    let regex = new RegExp(patterns.hdr);
-    let m;
-    while ((m = regex.exec(cleanName)) !== null) {
-        if (m.index < firstTagIndex) firstTagIndex = m.index;
-    }
-    info.hdr = hdrMatches.map(h => h.toUpperCase());
-  }
-
-  // 10. Other Tags (IMAX etc)
-  const tagMatches = cleanName.match(patterns.tags);
-  if (tagMatches) {
-      // Update index
-      let regex = new RegExp(patterns.tags);
-      let m;
-      while ((m = regex.exec(cleanName)) !== null) {
-          if (m.index < firstTagIndex) firstTagIndex = m.index;
-      }
-      info.tags = tagMatches.map(t => t.toUpperCase());
-  }
+  /* 
+  // Disabled other patterns if needed, but keeping Source enabled as it is rarely in NFO
+  // ... 
+  */
 
   // Extract Title
   // The title is generally everything from the start up to the first discovered tag.
@@ -292,6 +262,7 @@ export function parseReleaseName(name: string, nfoContent?: string): ReleaseInfo
       // For now, if nfo detected multi/french, we might want to override. 
       // Existing logic does not override info.language yet, let's add it if nfo has it
       if (nfoInfo.language) info.language = nfoInfo.language;
+      if (nfoInfo.container) info.container = nfoInfo.container;
   }
 
   return info;

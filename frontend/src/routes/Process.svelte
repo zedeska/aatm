@@ -33,29 +33,50 @@
     let generatedTorrentPath = $state("");
     let generatedNfoPath = $state("");
     let hasAutoSearched = $state(false);
+    let tmdbGenres: string[] = $state([]);
     
     // Release Info Parsing
     let releaseInfo: ReleaseInfo = $state({});
     
+    // Effect 1: Parse Release Info based on path/content/genres
     $effect(() => {
         if (workingPath) {
              const namePart = workingPath.split(/[/\\]/).pop() || "";
-             releaseInfo = parseReleaseName(namePart, nfoContent);
+             // We do NOT read releaseInfo fields here to avoid cycles
+             const parsed = parseReleaseName(namePart, nfoContent);
+             
+             // Restore genres
+             if (tmdbGenres.length > 0) {
+                 parsed.genres = tmdbGenres;
+             }
+
+             releaseInfo = parsed;
+
              // Auto-fill torrent name if empty and we have a valid title/year
+             // Using 'untrack' or just checking if torrentName is empty (which is state) is fine
+             // But reading torrentName makes this effect depend on it. 
+             // Ideally we only want to set it once.
              if (!torrentName) {
                  torrentName = namePart;
              }
-             // Auto-fill TMDB query if empty
-             if (!hasAutoSearched && !tmdbQuery && releaseInfo.title) {
-                 tmdbQuery = releaseInfo.title;
-                 if (releaseInfo.year) {
-                     tmdbQuery += ` y:${releaseInfo.year}`; // Custom logic for search? Or just pass year to search function if supported
-                     // Actually let's just use title for broad search or Title + Year string
-                     tmdbQuery = `${releaseInfo.title} ${releaseInfo.year || ''}`.trim();
-                 }
-                 searchTmdb();
-                 hasAutoSearched = true;
-             }
+        }
+    });
+
+    // Effect 2: Auto-Search TMDB when title appears
+    $effect(() => {
+        if (workingPath && !hasAutoSearched && !tmdbQuery && releaseInfo.title) {
+            // This effect triggers when releaseInfo changes. 
+            // It does NOT write to releaseInfo (except indirectly via search results later).
+            
+            let query = releaseInfo.title;
+            if (releaseInfo.year) {
+                query = `${releaseInfo.title} ${releaseInfo.year || ''}`.trim();
+            }
+            
+            // To prevent cycle, we update the state outside the synchronous tracking context or ensure conditions stop it
+            tmdbQuery = query;
+            searchTmdb();
+            hasAutoSearched = true;
         }
     });
 
@@ -73,7 +94,7 @@
         
         try {
             // 1. Select TMDB Item
-            selectTmdbItem(item);
+            await selectTmdbItem(item);
             
             // 2. Generate NFO
             await generateNfo();
@@ -112,11 +133,24 @@
         }
     }
 
-    function selectTmdbItem(item: any) {
+    async function selectTmdbItem(item: any) {
         selectedTmdbItem = item;
         tmdbId = item.id.toString();
         tmdbResults = []; 
         tmdbQuery = ""; 
+
+        // Fetch details for genres
+        const type = mediaType === 'movie' ? 'movie' : 'tv';
+        try {
+             const res = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}&language=fr-FR`);
+             const details = await res.json();
+             if (details.genres) {
+                 tmdbGenres = details.genres.map((g: any) => g.name);
+                 releaseInfo.genres = tmdbGenres;
+             }
+        } catch (e) {
+            console.error("Failed to fetch TMDB details:", e);
+        }
     }
 
     async function generateNfo() {

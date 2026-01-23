@@ -87,6 +87,8 @@ export namespace main {
 	    hdr: string[];
 	    tags: string[];
 	    releaseGroup: string;
+	    container: string;
+	    genres: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ReleaseInfo(source);
@@ -109,6 +111,8 @@ export namespace main {
 	        this.hdr = source["hdr"];
 	        this.tags = source["tags"];
 	        this.releaseGroup = source["releaseGroup"];
+	        this.container = source["container"];
+	        this.genres = source["genres"];
 	    }
 	}
 
